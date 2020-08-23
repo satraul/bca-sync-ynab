@@ -311,18 +311,24 @@ func main() {
 	}
 }
 
+// clearDate ref: https://cekmutasi.co.id/news/6/jadwal-jam-cut-off-jam-aktif-mutasi-ibanking
 func clearDate(now time.Time) time.Time {
-	// cutoff ref: https://cekmutasi.co.id/news/6/jadwal-jam-cut-off-jam-aktif-mutasi-ibanking
 	rounded := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	switch rounded.Weekday() {
+	switch now.Weekday() {
 	case time.Friday:
+		if now.Hour() < 22 {
+			return rounded
+		}
 		return rounded.AddDate(0, 0, 3)
 	case time.Saturday:
 		return rounded.AddDate(0, 0, 2)
 	case time.Sunday:
 		return rounded.AddDate(0, 0, 1)
 	default:
-		return rounded
+		if now.Hour() < 22 {
+			return rounded
+		}
+		return rounded.AddDate(0, 0, 1)
 	}
 }
 
