@@ -101,7 +101,7 @@ func main() {
 			&cli.BoolFlag{
 				Name:        "balance-adjust",
 				Value:       true,
-				Usage:       "create balance adjustment after creating transactions",
+				Usage:       "create balance adjustment if applicable after creating transactions",
 				Destination: &adjust,
 			},
 			&cli.BoolFlag{
@@ -158,7 +158,7 @@ func main() {
 
 			auth, err := bc.Login(ctx, config.BCAUser, config.BCAPassword, ip)
 			if err != nil {
-				return errors.Wrap(err, "failed to login")
+				return errors.Wrap(err, "failed to get bca login")
 			}
 			defer bc.Logout(ctx, auth)
 
@@ -168,10 +168,10 @@ func main() {
 			)
 			trxs, err := bc.AccountStatementView(ctx, start, end, auth)
 			if err != nil {
-				return errors.Wrap(err, "failed to get transactions. try bcasync -r")
+				return errors.Wrap(err, "failed to get bca transactions. try -r")
 			}
 			if len(trxs) == 0 {
-				fmt.Printf("no transactions from %s to %s\n", start, end)
+				fmt.Printf("no bca transactions from %s to %s\n", start, end)
 				return nil
 			}
 
@@ -182,7 +182,7 @@ func main() {
 			a, err := func() (*account.Account, error) {
 				accs, err := yc.Account().GetAccounts(budget, nil)
 				if err != nil {
-					return nil, errors.Wrap(err, "failed to get accounts")
+					return nil, errors.Wrap(err, "failed to get ynab accounts. try -r")
 				}
 
 				for _, acc := range accs.Accounts {
@@ -236,7 +236,7 @@ func main() {
 				return err
 			}
 			if len(resp.DuplicateImportIDs) > 0 {
-				fmt.Printf("%d transaction(s) already exists", len(resp.DuplicateImportIDs))
+				fmt.Printf("%d transaction(s) already exists\n", len(resp.DuplicateImportIDs))
 			}
 			fmt.Printf("%d transaction(s) were successfully created\n", len(resp.TransactionIDs))
 
@@ -293,7 +293,7 @@ func main() {
 						return errors.Wrap(err, "failed to create balance adjustment transaction")
 					}
 
-					fmt.Printf("balance adjustment transaction %v successfully created \n", resp.Transaction.ID)
+					fmt.Printf("balance adjustment transaction %v successfully created\n", resp.Transaction.ID)
 				}
 			}
 
