@@ -10,10 +10,18 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"strconv"
 	"syscall"
 	"time"
 
+	"go.bmvs.io/ynab/api"
+	"go.bmvs.io/ynab/api/account"
+	"go.bmvs.io/ynab/api/transaction"
+
+	"github.com/mitchellh/hashstructure"
 	"github.com/satraul/bca-go"
+	"github.com/shopspring/decimal"
+	"go.bmvs.io/ynab"
 
 	"github.com/pkg/errors"
 	"github.com/shibukawa/configdir"
@@ -36,59 +44,76 @@ type config struct {
 func main() {
 	var (
 		delete         bool
-		reset          bool
 		noninteractive bool
 		nostore        bool
-		username       string
+		reset          bool
+		accountName    string
+		budget         string
 		password       string
 		token          string
+		username       string
 	)
 
 	app := &cli.App{
 		Compiled:             time.Now(),
 		Copyright:            "(c) 2020 Ahmad Satryaji Aulia",
+		Description:          "Synchronize your BCA transactions with YNAB",
 		EnableBashCompletion: true,
 		Version:              "v1.0.0",
 		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:        "reset",
-				Aliases:     []string{"r"},
-				Value:       false,
-				Usage:       "reset credentials anew (default: false)",
-				Destination: &reset,
-			},
-			&cli.BoolFlag{
-				Name:        "delete",
-				Aliases:     []string{"d"},
-				Value:       false,
-				Usage:       "delete credentials (default: false)",
-				Destination: &delete,
-			},
 			&cli.StringFlag{
 				Name:        "username",
 				Aliases:     []string{"u"},
-				Usage:       "username for klikbca https://klikbca.com/. can be set from BCA_USERNAME environment variable",
+				Usage:       "username for klikbca https://klikbca.com/. can be set from environment variable",
 				Destination: &username,
 				EnvVars:     []string{"BCA_USERNAME"},
 			},
 			&cli.StringFlag{
 				Name:        "password",
 				Aliases:     []string{"p"},
-				Usage:       "password for klikbca https://klikbca.com/. can be set from BCA_PASSWORD environment variable",
+				Usage:       "password for klikbca https://klikbca.com/. can be set from environment variable",
 				Destination: &password,
 				EnvVars:     []string{"BCA_PASSWORD"},
 			},
 			&cli.StringFlag{
 				Name:        "token",
 				Aliases:     []string{"t"},
-				Usage:       "personal access token for ynab https://app.youneedabudget.com/settings/developer. can be set from YNAB_TOKEN environment variable",
+				Usage:       "ynab personal access token https://app.youneedabudget.com/settings/developer. can be set from environment variable",
 				Destination: &token,
 				EnvVars:     []string{"YNAB_TOKEN"},
+			},
+			&cli.StringFlag{
+				Name:        "account",
+				Aliases:     []string{"a"},
+				Value:       "BCA",
+				Usage:       "ynab account name",
+				Destination: &accountName,
+			},
+			&cli.StringFlag{
+				Name:        "budget",
+				Aliases:     []string{"b"},
+				Value:       "last-used",
+				Usage:       "ynab budget ID",
+				Destination: &budget,
+			},
+			&cli.BoolFlag{
+				Name:        "reset",
+				Aliases:     []string{"r"},
+				Value:       false,
+				Usage:       "reset credentials anew",
+				Destination: &reset,
+			},
+			&cli.BoolFlag{
+				Name:        "delete",
+				Aliases:     []string{"d"},
+				Value:       false,
+				Usage:       "delete credentials",
+				Destination: &delete,
 			},
 			&cli.BoolFlag{
 				Name:        "non-interactive",
 				Value:       false,
-				Usage:       "do not read from stdin and do not read/store credentials file. used with -u, -p and -t or environment variables (default: false)",
+				Usage:       "do not read from stdin and do not read/store credentials file. used with -u, -p and -t or environment variables",
 				Destination: &noninteractive,
 			},
 		},
@@ -118,24 +143,94 @@ func main() {
 			}
 
 			var (
-				api = bca.NewAPIClient(bca.NewConfiguration())
+				bc  = bca.NewAPIClient(bca.NewConfiguration())
 				ctx = context.Background()
 				ip  = getPublicIP()
 			)
 
-			auth, err := api.Login(ctx, config.BCAUser, config.BCAPassword, ip)
+			auth, err := bc.Login(ctx, config.BCAUser, config.BCAPassword, ip)
 			if err != nil {
 				return errors.Wrap(err, "failed to login")
 			}
+			defer bc.Logout(ctx, auth)
 
-			trxs, err := api.AccountStatementView(ctx, time.Now().AddDate(0, 0, -7), time.Now(), auth)
+			var (
+				start = time.Now().AddDate(0, 0, -27)
+				end   = time.Now()
+			)
+			trxs, err := bc.AccountStatementView(ctx, start, end, auth)
 			if err != nil {
 				return errors.Wrap(err, "failed to get transactions. try bcasync -r")
 			}
-			for _, trx := range trxs {
-				// TODO Import transactions to ynab using https://github.com/brunomvsouza/ynab.go
-				fmt.Printf("%+v\n", trx)
+			if len(trxs) == 0 {
+				fmt.Printf("no transactions from %s to %s\n", start, end)
+				return nil
 			}
+
+			var (
+				yc = ynab.NewClient(config.YNABToken)
+			)
+
+			a, err := func() (*account.Account, error) {
+				accs, err := yc.Account().GetAccounts(budget, nil)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to get accounts")
+				}
+
+				for _, acc := range accs.Accounts {
+					if acc.Name == accountName {
+						return acc, nil
+					}
+				}
+				return nil, errors.New("couldnt find account " + accountName)
+			}()
+			if err != nil {
+				return err
+			}
+
+			ps := make([]transaction.PayloadTransaction, 0)
+			for _, trx := range trxs {
+				var (
+					t        = trx.Date
+					miliunit = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
+					payee    = trx.Payee
+					memo     = trx.Description
+					hash, _  = hashstructure.Hash(trx, nil)
+					importid = strconv.FormatUint(hash, 10)
+				)
+				if t.IsZero() {
+					t = time.Now()
+				}
+				if trx.Type == "DB" {
+					miliunit = -miliunit
+				}
+				p := transaction.PayloadTransaction{
+					AccountID: a.ID,
+					Date: api.Date{
+						Time: t,
+					},
+					Amount:     miliunit,
+					Cleared:    transaction.ClearingStatusCleared,
+					Approved:   true,
+					PayeeID:    nil,
+					PayeeName:  &payee,
+					CategoryID: nil,
+					Memo:       &memo,
+					FlagColor:  nil,
+					ImportID:   &importid,
+				}
+
+				ps = append(ps, p)
+			}
+
+			resp, err := yc.Transaction().CreateTransactions(budget, ps)
+			if err != nil {
+				return err
+			}
+			if len(resp.DuplicateImportIDs) > 0 {
+				fmt.Printf("%d transaction(s) already exists", len(resp.DuplicateImportIDs))
+			}
+			fmt.Printf("%d transaction(s) were successfully created\n", len(resp.TransactionIDs))
 
 			return nil
 		},
@@ -148,19 +243,17 @@ func main() {
 }
 
 func readConfig(noninteractive bool, nostore bool, c *config) error {
-	reader := bufio.NewReader(os.Stdin)
-
 	if isZero(c.BCAUser) {
 		if noninteractive {
 			panic(errEmpty)
 		}
 
-		fmt.Print("Enter BCA Username (https://klikbca.com/): ")
-		username, err := reader.ReadString('\n')
+		fmt.Print("Enter KlikBCA Username: ")
+		byteUser, _, err := bufio.NewReader(os.Stdin).ReadLine()
 		if err != nil {
 			panic(err)
 		}
-		c.BCAUser = username
+		c.BCAUser = string(byteUser)
 
 		if isZero(c.BCAUser) {
 			panic(errEmpty)
@@ -171,7 +264,7 @@ func readConfig(noninteractive bool, nostore bool, c *config) error {
 		if noninteractive {
 			panic(errEmpty)
 		}
-		fmt.Print("Enter BCA Password (https://klikbca.com/): ")
+		fmt.Print("Enter KlikBCA Password: ")
 		bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			panic(err)
@@ -181,13 +274,15 @@ func readConfig(noninteractive bool, nostore bool, c *config) error {
 		if isZero(c.BCAPassword) {
 			panic(errEmpty)
 		}
+
+		fmt.Println()
 	}
 
-	if isZero(c.BCAPassword) {
+	if isZero(c.YNABToken) {
 		if noninteractive {
 			panic(errEmpty)
 		}
-		fmt.Print("Enter YNAB Personal Access Token (https://app.youneedabudget.com/settings/developer): ")
+		fmt.Print("Enter YNAB Personal Access Token: ")
 		byteToken, err := terminal.ReadPassword(int(syscall.Stdin))
 		if err != nil {
 			panic(err)
@@ -197,6 +292,8 @@ func readConfig(noninteractive bool, nostore bool, c *config) error {
 		if isZero(c.YNABToken) {
 			panic(errEmpty)
 		}
+
+		fmt.Println()
 	}
 
 	if noninteractive || nostore {
