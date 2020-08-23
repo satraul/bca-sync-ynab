@@ -198,6 +198,10 @@ func main() {
 
 			ps := make([]transaction.PayloadTransaction, 0)
 			for _, trx := range trxs {
+				// for PEND transactions, use hash of predicted clearance date to prevent duplicates
+				if trx.Date.IsZero() {
+					trx.Date = clearDate(time.Now())
+				}
 				var (
 					t        = trx.Date
 					miliunit = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
@@ -206,7 +210,7 @@ func main() {
 					hash, _  = hashstructure.Hash(trx, nil)
 					importid = strconv.FormatUint(hash, 10)
 				)
-				if t.IsZero() {
+				if t.After(time.Now()) {
 					t = time.Now()
 				}
 				if trx.Type == "DB" {
@@ -304,6 +308,21 @@ func main() {
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func clearDate(now time.Time) time.Time {
+	// cutoff ref: https://cekmutasi.co.id/news/6/jadwal-jam-cut-off-jam-aktif-mutasi-ibanking
+	rounded := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	switch rounded.Weekday() {
+	case time.Friday:
+		return rounded.AddDate(0, 0, 3)
+	case time.Saturday:
+		return rounded.AddDate(0, 0, 2)
+	case time.Sunday:
+		return rounded.AddDate(0, 0, 1)
+	default:
+		return rounded
 	}
 }
 
