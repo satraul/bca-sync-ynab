@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"log" // TODO Implement https://godoc.org/github.com/apex/log/handlers/cli
 	"net/http"
 	"os"
 	"reflect"
@@ -43,6 +43,7 @@ type config struct {
 }
 
 func main() {
+	// TODO tidy
 	var (
 		adjust         bool
 		delete         bool
@@ -61,7 +62,7 @@ func main() {
 		Copyright:            "(c) 2020 Ahmad Satryaji Aulia",
 		Description:          "Synchronize your BCA transactions with YNAB",
 		EnableBashCompletion: true,
-		Version:              "v1.0.0",
+		Version:              "v1.1.0", // TODO tag 1.1.0
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "username",
@@ -98,12 +99,14 @@ func main() {
 				Usage:       "ynab budget ID",
 				Destination: &budget,
 			},
+			// TODO fix flag
 			&cli.BoolFlag{
 				Name:        "balance-adjust",
 				Value:       true,
 				Usage:       "create balance adjustment if applicable after creating transactions",
 				Destination: &adjust,
 			},
+			// TODO add/remove nostore
 			&cli.BoolFlag{
 				Name:        "reset",
 				Aliases:     []string{"r"},
@@ -163,7 +166,7 @@ func main() {
 			defer bc.Logout(ctx, auth)
 
 			var (
-				start = time.Now().AddDate(0, 0, -27)
+				start = time.Now().AddDate(0, 0, -27) // TODO add flag for number of days and implement batch requests to get around 27-day range limitation
 				end   = time.Now()
 			)
 			trxs, err := bc.AccountStatementView(ctx, start, end, auth)
