@@ -16,6 +16,7 @@ import (
 
 	"go.bmvs.io/ynab/api"
 	"go.bmvs.io/ynab/api/account"
+	"go.bmvs.io/ynab/api/category"
 	"go.bmvs.io/ynab/api/transaction"
 
 	"github.com/mitchellh/hashstructure"
@@ -43,6 +44,7 @@ type config struct {
 
 func main() {
 	var (
+		adjust         bool
 		delete         bool
 		noninteractive bool
 		nostore        bool
@@ -95,6 +97,12 @@ func main() {
 				Value:       "last-used",
 				Usage:       "ynab budget ID",
 				Destination: &budget,
+			},
+			&cli.BoolFlag{
+				Name:        "balance-adjust",
+				Value:       true,
+				Usage:       "create balance adjustment after creating transactions",
+				Destination: &adjust,
 			},
 			&cli.BoolFlag{
 				Name:        "reset",
@@ -231,6 +239,63 @@ func main() {
 				fmt.Printf("%d transaction(s) already exists", len(resp.DuplicateImportIDs))
 			}
 			fmt.Printf("%d transaction(s) were successfully created\n", len(resp.TransactionIDs))
+
+			if adjust {
+				bal, err := bc.BalanceInquiry(ctx, auth)
+				if err != nil {
+					return errors.Wrap(err, "failed to get bca balance")
+				}
+				anew, err := yc.Account().GetAccount(budget, a.ID)
+				if err != nil {
+					return errors.Wrap(err, "failed to get ynab account")
+				}
+				if bal.Balance.Mul(decimal.NewFromInt(1000)).IntPart() != anew.Balance {
+					var (
+						miliunit = bal.Balance.Mul(decimal.NewFromInt(1000)).IntPart() - anew.Balance
+						payee    = "Manual Balance Adjustment"
+					)
+
+					c, err := func() (*category.Category, error) {
+						cs, err := yc.Category().GetCategories(budget, nil)
+						if err != nil {
+							return nil, errors.Wrap(err, "failed to get categories")
+						}
+
+						for _, group := range cs.GroupWithCategories {
+							for _, c := range group.Categories {
+								if c.Name == "Immediate Income SubCategory" {
+									return c, nil
+								}
+							}
+						}
+						return nil, errors.New("couldnt find to be budgeted category")
+					}()
+					if err != nil {
+						return err
+					}
+
+					resp, err := yc.Transaction().CreateTransaction(budget, transaction.PayloadTransaction{
+						AccountID: a.ID,
+						Date: api.Date{
+							Time: time.Now(),
+						},
+						Amount:     miliunit,
+						Cleared:    transaction.ClearingStatusReconciled,
+						Approved:   true,
+						PayeeID:    nil,
+						PayeeName:  &payee,
+						CategoryID: &c.ID,
+						Memo:       nil,
+						FlagColor:  nil,
+						ImportID:   nil,
+					})
+					if err != nil {
+						return errors.Wrap(err, "failed to create balance adjustment transaction")
+					}
+
+					fmt.Printf("balance adjustment transaction %v successfully created \n", resp.Transaction.ID)
+				}
+			}
 
 			return nil
 		},
