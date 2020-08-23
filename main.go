@@ -249,10 +249,10 @@ func main() {
 				if err != nil {
 					return errors.Wrap(err, "failed to get ynab account")
 				}
-				if bal.Balance.Mul(decimal.NewFromInt(1000)).IntPart() != anew.Balance {
+				delta := bal.Balance.IntPart()*1000 - anew.Balance
+				if delta != 0 {
 					var (
-						miliunit = bal.Balance.Mul(decimal.NewFromInt(1000)).IntPart() - anew.Balance
-						payee    = "Manual Balance Adjustment"
+						payee = "Automated Balance Adjustment"
 					)
 
 					c, err := func() (*category.Category, error) {
@@ -263,7 +263,7 @@ func main() {
 
 						for _, group := range cs.GroupWithCategories {
 							for _, c := range group.Categories {
-								if c.Name == "Immediate Income SubCategory" {
+								if c.Name == "Inflows" {
 									return c, nil
 								}
 							}
@@ -274,12 +274,12 @@ func main() {
 						return err
 					}
 
-					resp, err := yc.Transaction().CreateTransaction(budget, transaction.PayloadTransaction{
+					_, err = yc.Transaction().CreateTransaction(budget, transaction.PayloadTransaction{
 						AccountID: a.ID,
 						Date: api.Date{
 							Time: time.Now(),
 						},
-						Amount:     miliunit,
+						Amount:     delta,
 						Cleared:    transaction.ClearingStatusReconciled,
 						Approved:   true,
 						PayeeID:    nil,
@@ -293,7 +293,7 @@ func main() {
 						return errors.Wrap(err, "failed to create balance adjustment transaction")
 					}
 
-					fmt.Printf("balance adjustment transaction %v successfully created\n", resp.Transaction.ID)
+					fmt.Printf("balance adjustment transaction successfully created\n")
 				}
 			}
 
