@@ -201,16 +201,20 @@ func main() {
 
 			ps := make([]transaction.PayloadTransaction, 0)
 			for _, trx := range trxs {
-				// for PEND transactions, use hash of predicted clearance date to prevent duplicates
+				// description unreliable for hash
+				desc := trx.Description
+				trx.Description = ""
+				// use predicted clearance date for PEND transactions hash
 				if trx.Date.IsZero() {
 					trx.Date = clearDate(time.Now())
 				}
+				hash, _ := hashstructure.Hash(trx, nil)
+
 				var (
 					t        = trx.Date
 					miliunit = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
 					payee    = trx.Payee
-					memo     = trx.Description
-					hash, _  = hashstructure.Hash(trx, nil)
+					memo     = desc
 					importid = strconv.FormatUint(hash, 10)
 				)
 				if t.After(time.Now()) {
