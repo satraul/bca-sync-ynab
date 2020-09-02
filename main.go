@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"reflect"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 	"go.bmvs.io/ynab/api/category"
 	"go.bmvs.io/ynab/api/transaction"
 
-	"github.com/mitchellh/hashstructure"
+	"github.com/cnf/structhash"
 	"github.com/satraul/bca-go"
 	"github.com/shopspring/decimal"
 	"go.bmvs.io/ynab"
@@ -208,14 +207,13 @@ func main() {
 				if trx.Date.IsZero() {
 					trx.Date = clearDate(time.Now())
 				}
-				hash, _ := hashstructure.Hash(trx, nil)
 
 				var (
-					t        = trx.Date
-					miliunit = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
-					payee    = trx.Payee
-					memo     = desc
-					importid = strconv.FormatUint(hash, 10)
+					t           = trx.Date
+					miliunit    = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
+					payee       = trx.Payee
+					memo        = desc
+					importid, _ = structhash.Hash(trx, 1)
 				)
 				if t.After(time.Now()) {
 					t = time.Now()
