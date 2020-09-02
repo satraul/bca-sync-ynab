@@ -25,9 +25,10 @@ By default, credentials will be stored in your user-level configuration folder. 
    --token value, -t value     ynab personal access token https://app.youneedabudget.com/settings/developer. can be set from environment variable [%YNAB_TOKEN%]
    --account value, -a value   ynab account name (default: "BCA")
    --budget value, -b value    ynab budget ID (default: "last-used")
-   --balance-adjust            create balance adjustment if applicable after creating transactions (default: true)
    --reset, -r                 reset credentials anew (default: false)
    --delete, -d                delete credentials (default: false)
+   --no-adjust                 don't create balance adjustment if applicable after creating transactions (default: false)
+   --no-store                  don't store credentials (default: false)
    --non-interactive           do not read from stdin and do not read/store credentials file. used with -u, -p and -t or environment variables (default: false)
    --help, -h                  show help (default: false)
    --version, -v               print the version (default: false)

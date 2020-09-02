@@ -89,14 +89,6 @@ func main() {
 				Usage:       "ynab budget ID",
 				Destination: &budget,
 			},
-			// TODO fix flag
-			&cli.BoolFlag{
-				Name:        "balance-adjust",
-				Value:       true,
-				Usage:       "create balance adjustment if applicable after creating transactions",
-				Destination: &adjust,
-			},
-			// TODO add/remove nostore
 			&cli.BoolFlag{
 				Name:        "reset",
 				Aliases:     []string{"r"},
@@ -110,6 +102,18 @@ func main() {
 				Value:       false,
 				Usage:       "delete credentials",
 				Destination: &delete,
+			},
+			&cli.BoolFlag{
+				Name:        "no-adjust",
+				Value:       false,
+				Usage:       "don't create balance adjustment if applicable after creating transactions",
+				Destination: &noadjust,
+			},
+			&cli.BoolFlag{
+				Name:        "no-store",
+				Value:       false,
+				Usage:       "don't store credentials",
+				Destination: &nostore,
 			},
 			&cli.BoolFlag{
 				Name:        "non-interactive",
@@ -240,7 +244,7 @@ func main() {
 			}
 			fmt.Printf("%d transaction(s) were successfully created\n", len(resp.TransactionIDs))
 
-			if adjust {
+			if !noadjust {
 				bal, err := bc.BalanceInquiry(ctx, auth)
 				if err != nil {
 					return errors.Wrap(err, "failed to get bca balance")
