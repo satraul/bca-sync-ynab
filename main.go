@@ -42,18 +42,9 @@ type config struct {
 }
 
 func main() {
-	// TODO tidy
 	var (
-		adjust         bool
-		delete         bool
-		noninteractive bool
-		nostore        bool
-		reset          bool
-		accountName    string
-		budget         string
-		password       string
-		token          string
-		username       string
+		noadjust, delete, noninteractive, nostore, reset bool
+		accountName, budget, password, token, username   string
 	)
 
 	app := &cli.App{
@@ -61,7 +52,7 @@ func main() {
 		Copyright:            "(c) 2020 Ahmad Satryaji Aulia",
 		Description:          "Synchronize your BCA transactions with YNAB",
 		EnableBashCompletion: true,
-		Version:              "v1.1.0", // TODO tag 1.1.0
+		Version:              "v1.1.0",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "username",
@@ -337,7 +328,7 @@ func clearDate(now time.Time) time.Time {
 	}
 }
 
-func readConfig(noninteractive bool, nostore bool, c *config) error {
+func readConfig(noninteractive, nostore bool, c *config) error {
 	if isZero(c.BCAUser) {
 		if noninteractive {
 			panic(errEmpty)
