@@ -18,8 +18,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.0.1 h1:lPqVAte+HuHNfhJ/0LC98ESWRz8afy9tM/0RK8m9o+Q=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
-github.com/satraul/bca-go v1.0.0 h1:sNIiqkuVzXHDPZf+DG+ltkOYxxV98vTUBH5hUVKhUYQ=
-github.com/satraul/bca-go v1.0.0/go.mod h1:LH0jqEQz7XACvSo6qisCxGRFHgJSsisRIijQv2i0aTQ=
+github.com/satraul/bca-go v1.0.1 h1:T1k1q0WnSUoSezOyKppbQFkxH3le7YIDL36J4HdF4O0=
+github.com/satraul/bca-go v1.0.1/go.mod h1:LH0jqEQz7XACvSo6qisCxGRFHgJSsisRIijQv2i0aTQ=
 github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0 h1:Xuk8ma/ibJ1fOy4Ee11vHhUFHQNpHhrBneOCNHVXS5w=
 github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0/go.mod h1:7AwjWCpdPhkSmNAgUv5C7EJ4AbmjEB3r047r3DXWu3Y=
 github.com/shopspring/decimal v1.2.0 h1:abSATXmQEYyShuxI4/vyW3tV1MrKAJzCZ/0zLUXYbsQ=
