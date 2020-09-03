@@ -160,8 +160,8 @@ func main() {
 			defer bc.Logout(ctx, auth)
 
 			var (
-				start = time.Now().AddDate(0, 0, -27) // TODO add flag for number of days and implement batch requests to get around 27-day range limitation
 				end   = time.Now()
+				start = end.AddDate(0, 0, -27) // TODO add flag for number of days and implement batch requests to get around 27-day range limitation
 			)
 			trxs, err := bc.AccountStatementView(ctx, start, end, auth)
 			if err != nil {
