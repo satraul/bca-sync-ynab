@@ -3,9 +3,9 @@ module github.com/satraul/bca-sync-ynab
 go 1.14
 
 require (
-	github.com/mitchellh/hashstructure v1.0.0
+	github.com/cnf/structhash v0.0.0-20180104161610-62a607eb0224
 	github.com/pkg/errors v0.9.1
-	github.com/satraul/bca-go v1.0.0
+	github.com/satraul/bca-go v1.0.2
 	github.com/shibukawa/configdir v0.0.0-20170330084843-e180dbdc8da0
 	github.com/shopspring/decimal v1.2.0
 	github.com/urfave/cli/v2 v2.2.0

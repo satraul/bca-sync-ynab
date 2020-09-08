@@ -6,11 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"log" // TODO Implement https://godoc.org/github.com/apex/log/handlers/cli
 	"net/http"
 	"os"
 	"reflect"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -19,7 +18,7 @@ import (
 	"go.bmvs.io/ynab/api/category"
 	"go.bmvs.io/ynab/api/transaction"
 
-	"github.com/mitchellh/hashstructure"
+	"github.com/cnf/structhash"
 	"github.com/satraul/bca-go"
 	"github.com/shopspring/decimal"
 	"go.bmvs.io/ynab"
@@ -44,16 +43,8 @@ type config struct {
 
 func main() {
 	var (
-		adjust         bool
-		delete         bool
-		noninteractive bool
-		nostore        bool
-		reset          bool
-		accountName    string
-		budget         string
-		password       string
-		token          string
-		username       string
+		noadjust, delete, noninteractive, nostore, reset bool
+		accountName, budget, password, token, username   string
 	)
 
 	app := &cli.App{
@@ -61,7 +52,7 @@ func main() {
 		Copyright:            "(c) 2020 Ahmad Satryaji Aulia",
 		Description:          "Synchronize your BCA transactions with YNAB",
 		EnableBashCompletion: true,
-		Version:              "v1.0.0",
+		Version:              "v1.1.0",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "username",
@@ -99,12 +90,6 @@ func main() {
 				Destination: &budget,
 			},
 			&cli.BoolFlag{
-				Name:        "balance-adjust",
-				Value:       true,
-				Usage:       "create balance adjustment if applicable after creating transactions",
-				Destination: &adjust,
-			},
-			&cli.BoolFlag{
 				Name:        "reset",
 				Aliases:     []string{"r"},
 				Value:       false,
@@ -117,6 +102,18 @@ func main() {
 				Value:       false,
 				Usage:       "delete credentials",
 				Destination: &delete,
+			},
+			&cli.BoolFlag{
+				Name:        "no-adjust",
+				Value:       false,
+				Usage:       "don't create balance adjustment if applicable after creating transactions",
+				Destination: &noadjust,
+			},
+			&cli.BoolFlag{
+				Name:        "no-store",
+				Value:       false,
+				Usage:       "don't store credentials",
+				Destination: &nostore,
 			},
 			&cli.BoolFlag{
 				Name:        "non-interactive",
@@ -163,8 +160,8 @@ func main() {
 			defer bc.Logout(ctx, auth)
 
 			var (
-				start = time.Now().AddDate(0, 0, -27)
 				end   = time.Now()
+				start = end.AddDate(0, 0, -27) // TODO add flag for number of days and implement batch requests to get around 27-day range limitation
 			)
 			trxs, err := bc.AccountStatementView(ctx, start, end, auth)
 			if err != nil {
@@ -198,17 +195,20 @@ func main() {
 
 			ps := make([]transaction.PayloadTransaction, 0)
 			for _, trx := range trxs {
-				// for PEND transactions, use hash of predicted clearance date to prevent duplicates
+				// description unreliable for hash
+				desc := trx.Description
+				trx.Description = ""
+				// use predicted clearance date for PEND transactions hash
 				if trx.Date.IsZero() {
 					trx.Date = clearDate(time.Now())
 				}
+
 				var (
-					t        = trx.Date
-					miliunit = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
-					payee    = trx.Payee
-					memo     = trx.Description
-					hash, _  = hashstructure.Hash(trx, nil)
-					importid = strconv.FormatUint(hash, 10)
+					t           = trx.Date
+					miliunit    = trx.Amount.Mul(decimal.NewFromInt(1000)).IntPart()
+					payee       = trx.Payee
+					memo        = desc
+					importid, _ = structhash.Hash(trx, 1)
 				)
 				if t.After(time.Now()) {
 					t = time.Now()
@@ -244,7 +244,7 @@ func main() {
 			}
 			fmt.Printf("%d transaction(s) were successfully created\n", len(resp.TransactionIDs))
 
-			if adjust {
+			if !noadjust {
 				bal, err := bc.BalanceInquiry(ctx, auth)
 				if err != nil {
 					return errors.Wrap(err, "failed to get bca balance")
@@ -332,7 +332,7 @@ func clearDate(now time.Time) time.Time {
 	}
 }
 
-func readConfig(noninteractive bool, nostore bool, c *config) error {
+func readConfig(noninteractive, nostore bool, c *config) error {
 	if isZero(c.BCAUser) {
 		if noninteractive {
 			panic(errEmpty)
