@@ -42,6 +42,8 @@ type config struct {
 }
 
 func main() {
+	time.Local = time.FixedZone("WIB", +7*60*60)
+
 	var (
 		noadjust, delete, noninteractive, nostore, reset bool
 		accountName, budget, password, token, username   string
