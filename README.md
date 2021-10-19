@@ -20,9 +20,9 @@ Without any arguments `bca-sync-ynab` will interactively ask for credentials, sy
 By default, credentials will be stored in your user-level configuration folder. This behavior, and others, can be modified with flags:
 
 ```
-   --username value, -u value  username for klikbca https://klikbca.com/. can be set from environment variable [%BCA_USERNAME%]
-   --password value, -p value  password for klikbca https://klikbca.com/. can be set from environment variable [%BCA_PASSWORD%]
-   --token value, -t value     ynab personal access token https://app.youneedabudget.com/settings/developer. can be set from environment variable [%YNAB_TOKEN%]
+   --username value, -u value  username for klikbca https://klikbca.com/. can be set from environment variable (default: -) [%BCA_USERNAME%]
+   --password value, -p value  password for klikbca https://klikbca.com/. can be set from environment variable (default: -) [%BCA_PASSWORD%]
+   --token value, -t value     ynab personal access token https://app.youneedabudget.com/settings/developer. can be set from environment variable (default: -) [%YNAB_TOKEN%]
    --account value, -a value   ynab account name (default: "BCA")
    --budget value, -b value    ynab budget ID (default: "last-used")
    --reset, -r                 reset credentials anew (default: false)
@@ -30,6 +30,7 @@ By default, credentials will be stored in your user-level configuration folder. 
    --no-adjust                 don't create balance adjustment if applicable after creating transactions (default: false)
    --no-store                  don't store credentials (default: false)
    --non-interactive           do not read from stdin and do not read/store credentials file. used with -u, -p and -t or environment variables (default: false)
+   --csv                       instead of creating ynab transactions, generate a csv (default: false)
    --help, -h                  show help (default: false)
    --version, -v               print the version (default: false)
 ```
