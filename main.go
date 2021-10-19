@@ -65,6 +65,7 @@ func main() {
 				Usage:       "username for klikbca https://klikbca.com/. can be set from environment variable",
 				Destination: &username,
 				EnvVars:     []string{"BCA_USERNAME"},
+				DefaultText: "-",
 			},
 			&cli.StringFlag{
 				Name:        "password",
@@ -72,6 +73,7 @@ func main() {
 				Usage:       "password for klikbca https://klikbca.com/. can be set from environment variable",
 				Destination: &password,
 				EnvVars:     []string{"BCA_PASSWORD"},
+				DefaultText: "-",
 			},
 			&cli.StringFlag{
 				Name:        "token",
@@ -79,6 +81,7 @@ func main() {
 				Usage:       "ynab personal access token https://app.youneedabudget.com/settings/developer. can be set from environment variable",
 				Destination: &token,
 				EnvVars:     []string{"YNAB_TOKEN"},
+				DefaultText: "-",
 			},
 			&cli.StringFlag{
 				Name:        "account",
