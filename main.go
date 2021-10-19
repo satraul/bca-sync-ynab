@@ -57,7 +57,7 @@ func main() {
 		Copyright:            "(c) 2020 Ahmad Satryaji Aulia",
 		Description:          "Synchronize your BCA transactions with YNAB",
 		EnableBashCompletion: true,
-		Version:              "v1.1.0",
+		Version:              "v1.2.0",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "username",
