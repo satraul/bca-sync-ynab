@@ -37,12 +37,12 @@ func createFireflyTransactions(trxs []bca.Entry, ctx context.Context) error {
 			Execute()
 
 		if err != nil {
-			return fmt.Errorf("failed to create firefly transaction: %w", err)
+			return err
 		}
 		if resp.StatusCode != http.StatusOK {
 			b, _ := io.ReadAll(resp.Body)
 			defer resp.Body.Close()
-			return fmt.Errorf("failed to create firefly transaction: %s", string(b))
+			return fmt.Errorf("status code not OK with body %q", string(b))
 		}
 	}
 
