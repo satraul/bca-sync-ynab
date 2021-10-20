@@ -130,7 +130,6 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 		Amount:          amount,
 		Description:     description,
 		SourceId:        *gofirefly.NewNullableString(&account.Id),
-		DestinationId:   gofirefly.NullableString{},
 		DestinationName: *gofirefly.NewNullableString(&destinationName),
 	}
 	return fftrx
