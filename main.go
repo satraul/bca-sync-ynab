@@ -167,7 +167,13 @@ func actionFunc(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get bca login")
 	}
-	defer bc.Logout(ctx, auth)
+	bal, err := bc.BalanceInquiry(ctx, auth)
+	if err != nil {
+		return errors.Wrap(err, "failed to get bca balance")
+	}
+	if err := bc.Logout(ctx, auth); err != nil {
+		return fmt.Errorf("failed to logout: %w", err)
+	}
 
 	trxs, err := getBCATransactions(ctx, bc, auth)
 	if err != nil {
@@ -205,7 +211,7 @@ func actionFunc(c *cli.Context) error {
 	}
 
 	if !noadjust {
-		if err := createYNABBalancaAdjustment(bc, ctx, auth, yc, budget, a); err != nil {
+		if err := createYNABBalancaAdjustment(bal, ctx, auth, yc, budget, a); err != nil {
 			return fmt.Errorf("failed to create balance adjustment: %w", err)
 		}
 	}
