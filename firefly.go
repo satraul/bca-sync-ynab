@@ -33,7 +33,7 @@ func createFireflyTransactions(ctx context.Context, bal bca.Balance, trxs []bca.
 
 	account, err := getFireflyAccount(ff, auth)
 	if err != nil {
-		return fmt.Errorf("failed to get account: %w", account)
+		return fmt.Errorf("failed to get account: %w", err)
 	}
 
 	for _, trx := range trxs {

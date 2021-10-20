@@ -171,13 +171,12 @@ func actionFunc(c *cli.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get bca balance")
 	}
-	if err := bc.Logout(ctx, auth); err != nil {
-		return fmt.Errorf("failed to logout: %w", err)
-	}
-
 	trxs, err := getBCATransactions(ctx, bc, auth)
 	if err != nil {
 		return err
+	}
+	if err := bc.Logout(ctx, auth); err != nil {
+		return fmt.Errorf("failed to logout: %w", err)
 	}
 
 	if csvFlag {
