@@ -80,8 +80,13 @@ func createFireflyReconciliation(account *gofirefly.AccountRead, bal bca.Balance
 		return nil
 	}
 
+	recAcc, err := getReconciliationAccount(ff, auth)
+	if err != nil {
+		return fmt.Errorf("failed to get reconciliation account: %w", err)
+	}
+
 	fftrx := []gofirefly.TransactionSplitStore{
-		toFireflyReconciliationTrx(ffBalance, bal, account),
+		toFireflyReconciliationTrx(ffBalance, bal, account, recAcc),
 	}
 
 	return storeTransaction(ff, auth, fftrx)
@@ -117,20 +122,21 @@ func storeTransaction(ff *gofirefly.APIClient, auth context.Context, fftrx []gof
 	return nil
 }
 
-func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, account *gofirefly.AccountRead) gofirefly.TransactionSplitStore {
+func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, account *gofirefly.AccountRead, recAcc *gofirefly.AccountRead) gofirefly.TransactionSplitStore {
 	amount := ffBalance.Sub(bal.Balance).String()
 	t := time.Now()
-	firstday := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.Local)
-	lastday := firstday.AddDate(0, 1, 0).Add(time.Nanosecond * -1)
-	description := fmt.Sprintf("Reconciliation (%s to %s)", firstday.Format(reconciliationTimeLayout), lastday.Format(reconciliationTimeLayout))
-	destinationName := fmt.Sprintf("%s reconciliation (%s)", accountName, *account.Attributes.CurrencyCode)
+	to := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
+	from := to.AddDate(0, 0, -days)
+	description := fmt.Sprintf("Reconciliation (%s to %s)", from.Format(reconciliationTimeLayout), to.Format(reconciliationTimeLayout))
+	reconciled := true
 	fftrx := gofirefly.TransactionSplitStore{
-		Type:            "reconciliation",
-		Date:            lastday,
-		Amount:          amount,
-		Description:     description,
-		SourceId:        *gofirefly.NewNullableString(&account.Id),
-		DestinationName: *gofirefly.NewNullableString(&destinationName),
+		Type:          "reconciliation",
+		Date:          to,
+		Amount:        amount,
+		Description:   description,
+		Reconciled:    &reconciled,
+		SourceId:      *gofirefly.NewNullableString(&account.Id),
+		DestinationId: *gofirefly.NewNullableString(&recAcc.Id),
 	}
 	return fftrx
 }
@@ -138,12 +144,7 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitStore {
 	fftrx := gofirefly.TransactionSplitStore{}
 	fftrx.Amount = trx.Amount.String()
-
-	date := trx.Date
-	if trx.Date.IsZero() {
-		date = time.Now()
-	}
-	fftrx.Date = clearDate(date)
+	fftrx.Date = trx.Date
 
 	switch trx.Type {
 	case "DB":
@@ -164,4 +165,23 @@ func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitSto
 	}
 
 	return fftrx
+}
+
+func getReconciliationAccount(ff *gofirefly.APIClient, auth context.Context) (*gofirefly.AccountRead, error) {
+	ac, resp, err := ff.SearchApi.SearchAccounts(auth).
+		Field("name").
+		Query(accountName).
+		Type_(gofirefly.ACCOUNT_RECONCILIATION_ACCOUNT).
+		Execute()
+	if err != nil {
+		return nil, fmt.Errorf("failed to search reconciliation account %q", accountName)
+	}
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("status code not OK with query %q response %q", accountName, string(b))
+	}
+	if len(ac.Data) == 0 {
+		return nil, fmt.Errorf("no accounts found with name %q", accountName)
+	}
+	return &ac.Data[0], nil
 }
