@@ -137,10 +137,8 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 }
 
 func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitStore {
-	fftrx := gofirefly.TransactionSplitStore{
-		Amount:      trx.Amount.String(),
-		Description: trx.Description,
-	}
+	fftrx := gofirefly.TransactionSplitStore{}
+	fftrx.Amount = trx.Amount.String()
 
 	date := trx.Date
 	if trx.Date.IsZero() {
@@ -157,6 +155,13 @@ func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitSto
 		fftrx.Type = "deposit"
 		fftrx.SourceName = *gofirefly.NewNullableString(&trx.Payee)
 		fftrx.DestinationId = *gofirefly.NewNullableString(&accountID)
+	}
+
+	switch {
+	case trx.Description != "":
+		fftrx.Description = trx.Description
+	default:
+		fftrx.Description = trx.Payee
 	}
 
 	return fftrx
