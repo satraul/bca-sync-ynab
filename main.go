@@ -127,15 +127,15 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:        "firefly-token",
-				Aliases:     []string{"ft"},
-				Usage:       "firefly token for use with -f / --firefly-url",
+				Aliases:     []string{"T"},
+				Usage:       "firefly iii oauth token for use with -f / --firefly-url",
 				Destination: &fireflyToken,
 			},
 			&cli.IntFlag{
 				Name:        "days",
 				Aliases:     []string{"n"},
 				Value:       27,
-				Usage:       "fetch transactions from n number of days ago (max is 27)",
+				Usage:       "fetch transactions from n number of days ago (0 to 27 inclusive)",
 				Destination: &days,
 			},
 		},

@@ -84,7 +84,7 @@ func readConfig(noninteractive, nostore bool, c *config) error {
 		fmt.Println()
 	}
 
-	if isZero(c.YNABToken) {
+	if isZero(c.YNABToken) && !(csvFlag || fireflyUrl != "") {
 		if noninteractive {
 			panic(errEmpty)
 		}
