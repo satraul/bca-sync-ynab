@@ -123,21 +123,29 @@ func storeTransaction(ff *gofirefly.APIClient, auth context.Context, fftrx []gof
 }
 
 func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, account *gofirefly.AccountRead, recAcc *gofirefly.AccountRead) gofirefly.TransactionSplitStore {
-	amount := ffBalance.Sub(bal.Balance).String()
+	amount := bal.Balance.Sub(ffBalance)
 	t := time.Now()
 	to := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
 	from := to.AddDate(0, 0, -days)
 	description := fmt.Sprintf("Reconciliation (%s to %s)", from.Format(reconciliationTimeLayout), to.Format(reconciliationTimeLayout))
 	reconciled := true
 	fftrx := gofirefly.TransactionSplitStore{
-		Type:          "reconciliation",
-		Date:          to,
-		Amount:        amount,
-		Description:   description,
-		Reconciled:    &reconciled,
-		SourceId:      *gofirefly.NewNullableString(&account.Id),
-		DestinationId: *gofirefly.NewNullableString(&recAcc.Id),
+		Type:        "reconciliation",
+		Date:        to,
+		Amount:      amount.Abs().String(),
+		Description: description,
+		Reconciled:  &reconciled,
 	}
+
+	switch {
+	case amount.IsPositive():
+		fftrx.SourceId = *gofirefly.NewNullableString(&recAcc.Id)
+		fftrx.DestinationId = *gofirefly.NewNullableString(&account.Id)
+	default:
+		fftrx.SourceId = *gofirefly.NewNullableString(&account.Id)
+		fftrx.DestinationId = *gofirefly.NewNullableString(&recAcc.Id)
+	}
+
 	return fftrx
 }
 
