@@ -190,7 +190,7 @@ func actionFunc(c *cli.Context) error {
 	}
 
 	if fireflyUrl != "" {
-		err := createFireflyTransactions(trxs, ctx)
+		err := createFireflyTransactions(ctx, bal, trxs)
 		if err != nil {
 			return fmt.Errorf("failed to create firefly transactions: %w", err)
 		}
