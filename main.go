@@ -205,12 +205,14 @@ func actionFunc(c *cli.Context) error {
 		return err
 	}
 
-	if err := createYNABTransactions(yc, trxs, a, budget); err != nil {
-		return fmt.Errorf("failed to create ynab transactions: %w", err)
+	if len(trxs) > 0 {
+		if err := createYNABTransactions(yc, trxs, a, budget); err != nil {
+			return fmt.Errorf("failed to create ynab transactions: %w", err)
+		}
 	}
 
 	if !noadjust {
-		if err := createYNABBalancaAdjustment(bal, ctx, auth, yc, budget, a); err != nil {
+		if err := createYNABBalanceAdjustment(bal, ctx, auth, yc, budget, a); err != nil {
 			return fmt.Errorf("failed to create balance adjustment: %w", err)
 		}
 	}
@@ -234,9 +236,9 @@ func getBCATransactions(ctx context.Context, bc *bca.BCAApiService, auth []*http
 		return nil, errors.Wrap(err, "failed to get bca transactions. try -r")
 	}
 	if len(trxs) == 0 {
-		return nil, fmt.Errorf("no bca transactions from %s to %s\n", start, end)
+		fmt.Printf("0 bca transactions from %s to %s\n", start.Format("2006-01-02"), end.Format("2006-01-02"))
 	}
-	return trxs, err
+	return trxs, nil
 }
 
 func transactionsToCsv(trxs []bca.Entry) (string, error) {

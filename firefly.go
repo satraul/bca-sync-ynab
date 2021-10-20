@@ -43,11 +43,21 @@ func createFireflyTransactions(ctx context.Context, bal bca.Balance, trxs []bca.
 		}
 	}
 
+	fmt.Printf("%d firefly transaction(s) were successfully created\n", len(trxs))
+
 	if !noadjust {
-		err := createFireflyReconciliation(account, bal, ff, auth)
+		ffBalance, err := decimal.NewFromString(*account.Attributes.CurrentBalance)
+		if err != nil {
+			return fmt.Errorf("cannot parse decimal from firefly balance: %w", err)
+		}
+		if bal.Balance.Equal(ffBalance) {
+			return nil
+		}
+		err = createFireflyReconciliation(ffBalance, account.Id, bal, ff, auth)
 		if err != nil {
 			return fmt.Errorf("failed to create firefly reconciliation: %w", err)
 		}
+		fmt.Printf("firefly reconciliation successfully created\n")
 	}
 
 	return nil
@@ -71,22 +81,14 @@ func getFireflyAccount(ff *gofirefly.APIClient, auth context.Context) (*gofirefl
 	return &ac.Data[0], nil
 }
 
-func createFireflyReconciliation(account *gofirefly.AccountRead, bal bca.Balance, ff *gofirefly.APIClient, auth context.Context) error {
-	ffBalance, err := decimal.NewFromString(*account.Attributes.CurrentBalance)
-	if err != nil {
-		return fmt.Errorf("cannot parse decimal from firefly balance: %w", err)
-	}
-	if bal.Balance.Equal(ffBalance) {
-		return nil
-	}
-
+func createFireflyReconciliation(ffBalance decimal.Decimal, accountID string, bal bca.Balance, ff *gofirefly.APIClient, auth context.Context) error {
 	recAcc, err := getReconciliationAccount(ff, auth)
 	if err != nil {
 		return fmt.Errorf("failed to get reconciliation account: %w", err)
 	}
 
 	fftrx := []gofirefly.TransactionSplitStore{
-		toFireflyReconciliationTrx(ffBalance, bal, account, recAcc),
+		toFireflyReconciliationTrx(ffBalance, bal, accountID, recAcc.Id),
 	}
 
 	return storeTransaction(ff, auth, fftrx)
@@ -122,7 +124,7 @@ func storeTransaction(ff *gofirefly.APIClient, auth context.Context, fftrx []gof
 	return nil
 }
 
-func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, account *gofirefly.AccountRead, recAcc *gofirefly.AccountRead) gofirefly.TransactionSplitStore {
+func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, accountID, recAccID string) gofirefly.TransactionSplitStore {
 	amount := bal.Balance.Sub(ffBalance)
 	t := time.Now()
 	to := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.Local)
@@ -139,11 +141,11 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 
 	switch {
 	case amount.IsPositive():
-		fftrx.SourceId = *gofirefly.NewNullableString(&recAcc.Id)
-		fftrx.DestinationId = *gofirefly.NewNullableString(&account.Id)
+		fftrx.SourceId = *gofirefly.NewNullableString(&recAccID)
+		fftrx.DestinationId = *gofirefly.NewNullableString(&accountID)
 	default:
-		fftrx.SourceId = *gofirefly.NewNullableString(&account.Id)
-		fftrx.DestinationId = *gofirefly.NewNullableString(&recAcc.Id)
+		fftrx.SourceId = *gofirefly.NewNullableString(&accountID)
+		fftrx.DestinationId = *gofirefly.NewNullableString(&recAccID)
 	}
 
 	return fftrx

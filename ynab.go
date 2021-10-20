@@ -50,7 +50,7 @@ func getYNABAccount(yc ynab.ClientServicer, budget string, accountName string) (
 	return nil, errors.New("couldnt find account " + accountName)
 }
 
-func createYNABBalancaAdjustment(bal bca.Balance, ctx context.Context, auth []*http.Cookie, yc ynab.ClientServicer, budget string, a *account.Account) error {
+func createYNABBalanceAdjustment(bal bca.Balance, ctx context.Context, auth []*http.Cookie, yc ynab.ClientServicer, budget string, a *account.Account) error {
 	anew, err := yc.Account().GetAccount(budget, a.ID)
 	if err != nil {
 		return errors.Wrap(err, "failed to get ynab account")
