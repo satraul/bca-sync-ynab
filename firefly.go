@@ -113,7 +113,7 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 	firstday := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.Local)
 	lastday := firstday.AddDate(0, 1, 0).Add(time.Nanosecond * -1)
 	description := fmt.Sprintf("Reconciliation (%s to %s)", firstday.Format(reconciliationTimeLayout), lastday.Format(reconciliationTimeLayout))
-	destinationName := fmt.Sprintf("%s reconciliation (%s)", account.Attributes.CurrencyCode)
+	destinationName := fmt.Sprintf("%s reconciliation (%s)", accountName, *account.Attributes.CurrencyCode)
 	fftrx := gofirefly.TransactionSplitStore{
 		Type:            "reconciliation",
 		Date:            lastday,
@@ -134,7 +134,7 @@ func getFireflyAccount(ff *gofirefly.APIClient, auth context.Context) (*gofirefl
 	if err != nil {
 		return nil, fmt.Errorf("failed to search account %q", accountName)
 	}
-	if resp != nil {
+	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("status code not OK with query %q response %q", accountName, string(b))
 	}
