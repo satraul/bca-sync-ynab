@@ -38,10 +38,10 @@ func main() {
 
 	app := &cli.App{
 		Compiled:             time.Now(),
-		Copyright:            "(c) 2021 Ahmad Satryaji Aulia",
+		Copyright:            "(c) 2020 Ahmad Satryaji Aulia",
 		Description:          "Synchronize your BCA transactions with YNAB",
 		EnableBashCompletion: true,
-		Version:              "v1.3.0",
+		Version:              "v1.3.1",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "username",
