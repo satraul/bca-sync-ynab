@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/satraul/bca-go"
@@ -45,6 +46,11 @@ func createFireflyTransactions(ctx context.Context, bal bca.Balance, trxs []bca.
 
 	fmt.Printf("%d firefly transaction(s) were successfully created\n", len(trxs))
 
+	account, err = getFireflyAccountByID(ff, auth, account.Id)
+	if err != nil {
+		return fmt.Errorf("failed to get account: %w", err)
+	}
+
 	if !noadjust {
 		ffBalance, err := decimal.NewFromString(*account.Attributes.CurrentBalance)
 		if err != nil {
@@ -79,6 +85,19 @@ func getFireflyAccount(ff *gofirefly.APIClient, auth context.Context) (*gofirefl
 		return nil, fmt.Errorf("no accounts found with name %q", accountName)
 	}
 	return &ac.Data[0], nil
+}
+
+func getFireflyAccountByID(ff *gofirefly.APIClient, auth context.Context, id string) (*gofirefly.AccountRead, error) {
+	ac, resp, err := ff.AccountsApi.GetAccount(auth, stringToInt32(id)).
+		Execute()
+	if err != nil {
+		return nil, fmt.Errorf("failed to search account %q", accountName)
+	}
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("status code not OK with query %q response %q", accountName, string(b))
+	}
+	return &ac.Data, nil
 }
 
 func createFireflyReconciliation(ffBalance decimal.Decimal, accountID string, bal bca.Balance, ff *gofirefly.APIClient, auth context.Context) error {
@@ -194,4 +213,9 @@ func getReconciliationAccount(ff *gofirefly.APIClient, auth context.Context) (*g
 		return nil, fmt.Errorf("no accounts found with name %q", accountName)
 	}
 	return &ac.Data[0], nil
+}
+
+func stringToInt32(s string) int32 {
+	i, _ := strconv.Atoi(s)
+	return int32(i)
 }
