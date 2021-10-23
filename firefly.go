@@ -173,7 +173,13 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitStore {
 	fftrx := gofirefly.TransactionSplitStore{}
 	fftrx.Amount = trx.Amount.String()
-	fftrx.Date = trx.Date
+
+	switch {
+	case trx.Date.IsZero():
+		fftrx.Date = time.Now()
+	default:
+		fftrx.Date = trx.Date
+	}
 
 	switch trx.Type {
 	case "DB":
