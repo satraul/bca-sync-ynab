@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,6 +17,10 @@ import (
 
 const (
 	reconciliationTimeLayout = "January 2, 2006"
+)
+
+var (
+	errDateIsZero = errors.New("date is zero")
 )
 
 func createFireflyTransactions(ctx context.Context, bal bca.Balance, trxs []bca.Entry) error {
@@ -106,25 +111,27 @@ func createFireflyReconciliation(ffBalance decimal.Decimal, accountID string, ba
 		return fmt.Errorf("failed to get reconciliation account: %w", err)
 	}
 
-	fftrx := []gofirefly.TransactionSplitStore{
-		toFireflyReconciliationTrx(ffBalance, bal, accountID, recAcc.Id),
-	}
+	fftrx := toFireflyReconciliationTrx(ffBalance, bal, accountID, recAcc.Id)
 
 	return storeTransaction(ff, auth, fftrx)
 }
 
 func createFireflyTransaction(trx bca.Entry, account *gofirefly.AccountRead, ff *gofirefly.APIClient, auth context.Context) error {
-	fftrx := []gofirefly.TransactionSplitStore{
-		toFireflyTrx(trx, account.Id),
+	fftrx, err := toFireflyTrx(trx, account.Id)
+	if err != nil {
+		if errors.Is(err, errDateIsZero) {
+			return nil
+		}
+		return err
 	}
 
 	return storeTransaction(ff, auth, fftrx)
 }
 
-func storeTransaction(ff *gofirefly.APIClient, auth context.Context, fftrx []gofirefly.TransactionSplitStore) error {
+func storeTransaction(ff *gofirefly.APIClient, auth context.Context, fftrx gofirefly.TransactionSplitStore) error {
 	_, resp, err := ff.TransactionsApi.
 		StoreTransaction(auth).
-		TransactionStore(*gofirefly.NewTransactionStore(fftrx)).
+		TransactionStore(*gofirefly.NewTransactionStore([]gofirefly.TransactionSplitStore{fftrx})).
 		Execute()
 
 	if err != nil {
@@ -170,16 +177,14 @@ func toFireflyReconciliationTrx(ffBalance decimal.Decimal, bal bca.Balance, acco
 	return fftrx
 }
 
-func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitStore {
+func toFireflyTrx(trx bca.Entry, accountID string) (gofirefly.TransactionSplitStore, error) {
 	fftrx := gofirefly.TransactionSplitStore{}
 	fftrx.Amount = trx.Amount.String()
 
-	switch {
-	case trx.Date.IsZero():
-		fftrx.Date = time.Now()
-	default:
-		fftrx.Date = trx.Date
+	if trx.Date.IsZero() {
+		return gofirefly.TransactionSplitStore{}, errDateIsZero
 	}
+	fftrx.Date = trx.Date
 
 	switch trx.Type {
 	case "DB":
@@ -199,7 +204,7 @@ func toFireflyTrx(trx bca.Entry, accountID string) gofirefly.TransactionSplitSto
 		fftrx.Description = trx.Payee
 	}
 
-	return fftrx
+	return fftrx, nil
 }
 
 func getReconciliationAccount(ff *gofirefly.APIClient, auth context.Context) (*gofirefly.AccountRead, error) {
